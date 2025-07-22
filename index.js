@@ -361,7 +361,7 @@ function writeSpecToOutputFile() {
 /**
  * @type { typeof import('./index').handleResponses }
 */
-function handleResponses(expressApp, 
+function handleResponses(expressApp,
   options = { 
     swaggerUiServePath: DEFAULT_SWAGGER_UI_SERVE_PATH, 
     specOutputPath: undefined, 
@@ -411,6 +411,31 @@ function handleResponses(expressApp,
 
   /** middleware to handle RESPONSES */
   app.use((req, res, next) => {
+    const oldEnd = res.end;
+    res.end = function (...args) {
+      try {
+        oldEnd.apply(res, args);
+      } /*don't catch here*/ finally {
+        try {
+          const methodAndPathKey = getMethod(req);
+          if (methodAndPathKey && methodAndPathKey.method && methodAndPathKey.pathKey) {
+            const method = methodAndPathKey.method;
+            updateSchemesAndHost(req);
+            processors.processPath(req, method, methodAndPathKey.pathKey);
+            processors.processHeaders(req, method, spec);
+            processors.processBody(req, method);
+            processors.processQuery(req, method);
+            writeSpecToOutputFile();
+          }
+        } catch (e) {
+          logger.warn('Error happened while processing request.')
+          //TODO: Add configurable handling.
+          // (requestErrorHandler || errorHandler)(e)
+        } finally {
+          // No need to call next. Outside of middleware chain.
+        }
+      }
+    };
     try {
       const methodAndPathKey = getMethod(req);
       if (methodAndPathKey && methodAndPathKey.method) {
@@ -432,7 +457,6 @@ function handleResponses(expressApp,
  * @type { typeof import('./index').handleRequests }
  */
 function handleRequests() {
-  
   const isIgnoredEnvironment = ignoredNodeEnvironments.includes(process.env.NODE_ENV);
   if (serveDocs || !isIgnoredEnvironment) {      
     /** forward options to `serveApiDocs`: */
@@ -456,24 +480,6 @@ function handleRequests() {
   }
   
   /** middleware to handle REQUESTS */
-  app.use((req, res, next) => {
-    try {
-      const methodAndPathKey = getMethod(req);
-      if (methodAndPathKey && methodAndPathKey.method && methodAndPathKey.pathKey) {
-        const method = methodAndPathKey.method;
-        updateSchemesAndHost(req);
-        processors.processPath(req, method, methodAndPathKey.pathKey);
-        processors.processHeaders(req, method, spec);
-        processors.processBody(req, method);
-        processors.processQuery(req, method);
-        writeSpecToOutputFile();
-      }
-    } catch (e) {
-      /** TODO - shouldn't we do something here? */
-    } finally {
-      next();
-    }
-  });
 }
 
 /**
