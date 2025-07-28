@@ -243,7 +243,10 @@ function patchSpec(predefinedSpec) {
  * @returns {string|undefined|*}
  */
 function getPathKey(req) {
-  const url = req.url ? req.url.split('?')[0] : undefined;
+  const url =
+    (req.originalUrl || req.url)
+    ? (req.originalUrl || req.url)?.split('?')[0]
+    : undefined;
   
   if (spec.paths[url]) {
     return url;
@@ -265,7 +268,7 @@ function getPathKey(req) {
  * @returns {{method: *, pathKey: *}|undefined}
  */
 function getMethod(req) {
-  if (req.url.startsWith('/api-')) {
+  if ((req.originalUrl || req.url).startsWith('/api-')) {
     return undefined;
   }
 
@@ -412,35 +415,18 @@ function handleResponses(expressApp,
 
   /** middleware to handle RESPONSES */
   app.use((req, res, next) => {
-    const oldEnd = res.end;
-    res.end = function (...args) {
-      try {
-        oldEnd.apply(res, args);
-      } /*don't catch here*/ finally {
-        try {
-          const methodAndPathKey = getMethod(req);
-          if (methodAndPathKey && methodAndPathKey.method && methodAndPathKey.pathKey) {
+    try {
+      const methodAndPathKey = getMethod(req);
+      if (methodAndPathKey && methodAndPathKey.method) {
+        processors.processResponse(res, methodAndPathKey.method, () => {
+          if (methodAndPathKey.pathKey) {
             const method = methodAndPathKey.method;
             updateSchemesAndHost(req);
             processors.processPath(req, method, methodAndPathKey.pathKey);
             processors.processHeaders(req, method, spec);
             processors.processBody(req, method);
             processors.processQuery(req, method);
-            writeSpecToOutputFile();
           }
-        } catch (e) {
-          logger.warn('Error happened while processing request.')
-          //TODO: Add configurable handling.
-          // (requestErrorHandler || errorHandler)(e)
-        } finally {
-          // No need to call next. Outside of middleware chain.
-        }
-      }
-    };
-    try {
-      const methodAndPathKey = getMethod(req);
-      if (methodAndPathKey && methodAndPathKey.method) {
-        processors.processResponse(res, methodAndPathKey.method, () => {
           writeSpecToOutputFile();
         });
       }
