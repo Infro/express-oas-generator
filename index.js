@@ -203,7 +203,7 @@ function prepareSpec() {
     });
   });
 
-  spec.definitions = mongooseModelsSpecs || {};
+  spec.definitions = JSON.parse(JSON.stringify(mongooseModelsSpecs)) || {};
   updateSpecFromPackage();
   spec = patchSpec(predefinedSpec);
 }
