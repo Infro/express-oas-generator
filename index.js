@@ -355,6 +355,20 @@ function writeSpecToOutputFile() {
       parsedSpecOutputPath.base = name.concat('_').concat(versions.OPEN_API_V3).concat(ext);
       
       const v3Path = path.format(parsedSpecOutputPath);
+      _merge(specV3, {    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        },
+        "responses": {
+            "UnauthorizedError": {
+                "description": "Access token is missing or invalid"
+            }
+        }
+    }})
       
       fs.writeFileSync(v3Path, JSON.stringify(specV3, null, 2), 'utf8');
     }
