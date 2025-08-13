@@ -172,7 +172,7 @@ function prepareSpec() {
   const endpoints = listEndpoints(app);
   endpoints.forEach(endpoint => {
     const params = [];
-    let path = endpoint.path;
+    let path = endpoint.path.toLowerCase();
     const matches = path.match(/:([^/]+)/g);
     if (matches) {
       matches.forEach(found => {
@@ -245,7 +245,7 @@ function patchSpec(predefinedSpec) {
 function getPathKey(req) {
   const url =
     (req.originalUrl || req.url)
-    ? (req.originalUrl || req.url)?.split('?')[0]
+    ? (req.originalUrl || req.url)?.split('?')[0].toLowerCase()
     : undefined;
   
   if (spec.paths[url]) {
